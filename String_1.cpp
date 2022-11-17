@@ -3,72 +3,93 @@
 
 class String {
  public:
-  String() = default;
+  String(): size_(0), cap(0), string_(new char[1]) {
+    string_[0] = '\0';
+  }
+
+  String(size_t size, size_t cap): size_(size), cap(cap), string_(new char[cap + 1]) {}
 
   String(const char* arg): string_(new char[strlen(arg) + 1]) {
     size_ = strlen(arg);
-    string_ = new char[size_ + 1];
-    for (size_t i = 0; i < size_; ++i) {
-      string_[i] = *(arg + i);
-    }
-    string_[size_] = '\0';
-    cap = 2 * size_;
+    std::copy(arg, arg + size_ + 1, string_);
+    cap = size_;
   }
 
   String(const String& str): size_(str.size_), cap(str.cap), string_(new char[str.cap + 1]) {
     memcpy(string_, str.string_, size_ + 1);
   }
 
-  String(size_t n, char c): size_(n), cap(n), string_(new char[n + 1]) {
+  String(size_t n, char c): size_(n), cap(n), string_(new char[cap + 1]) {
     memset(string_, c, size_);
     string_[n] = '\0';
   }
 
+  void UpdateCapRealloc() {
+    if (size_ == 0){
+      char* new_st = new char[2];
+      new_st[1] = '\0';
+      string_ = new_st;
+      delete[] new_st;
+      cap = 1;
+      return;
+    } else {
+      char *new_st = new char[2 * cap + 1];
+      strcpy(new_st, string_);
+      cap *= 2;
+      string_ = new_st;
+      delete[] new_st;
+    }
+  }
+
   size_t find(const String& st) {
     char* result = new char[st.size_ + 1];
-    for (size_t i = 0; i < size_ - st.size_; ++i) {
+    for (size_t i = 0; i <= size_ - st.size_; ++i) {
       memcpy(result, string_ + i, st.size_);
       result[size_] = '\0';
       if (String(result) == st) {
         return i;
       }
     }
+    delete[] result;
     return size_;
   }
 
   size_t find(const String& st) const{
     char* result = new char[st.size_ + 1];
-    for (size_t i = 0; i < size_ - st.size_; ++i) {
+    for (size_t i = 0; i <= size_ - st.size_; ++i) {
       memcpy(result, string_ + i, st.size_);
       result[size_] = '\0';
       if (String(result) == st) {
         return i;
       }
     }
+    delete[] result;
     return size_;
   }
 
   size_t rfind(const String& st) {
     char* result = new char[st.size_ + 1];
-    for (size_t i = size_ - st.size_; i > 0; --i) {
+    for (size_t i = size_ - st.size_; i + 1 > 0; --i) {
       memcpy(result, string_ + i, st.size_);
       result[size_] = '\0';
       if (String(result) == st) {
         return i;
       }
     }
+    delete[] result;
     return size_;
   }
 
   size_t rfind(const String& st) const{
     char* result = new char[st.size_ + 1];
-    for (size_t i = size_ - st.size_; i > 0; --i) {
+    for (size_t i = size_ - st.size_; i + 1 > 0; --i) {
       memcpy(result, string_ + i, st.size_);
       result[size_] = '\0';
       if (String(result) == st) {
         return i;
       }
     }
+    delete[] result;
     return size_;
   }
 
@@ -101,12 +122,16 @@ class String {
   }
 
   void push_back(char c) {
+    if (size_ == cap) {
+      UpdateCapRealloc();
+    }
     string_[size_] = c;
+    string_[size_ + 1] = '\0';
     ++size_;
   }
 
   void pop_back() {
-    string_[size_] = '\0';
+    string_[size_ - 1] = '\0';
     --size_;
   }
 
@@ -115,34 +140,25 @@ class String {
   }
 
   void clear() {
-    if (!empty()) {
-      size_ = 0;
-      delete[] string_;
-      string_ = new char[1];
-    }
+    string_[0] = '\0';
+    size_ = 0;
   }
 
   String substr(size_t start, size_t count) {
-    String st;
-    st.size_ = count + 1;
-    st.string_ = new char[st.size_];
+    String st(count + 1, 2 * count);
     for (size_t i = 0; i < count; ++i) {
       st.string_[i] = string_[start + i];
     }
-    st.string_[count - 1] = '\0';
-    st.cap = st.size_;
+    st.string_[size_] = '\0';
     return st;
   }
 
   String substr(size_t start, size_t count) const {
-    String st;
-    st.size_ = count + 1;
-    st.string_ = new char[st.size_];
+    String st(count + 1, 2 * count);
     for (size_t i = 0; i < count; ++i) {
       st.string_[i] = string_[start + i];
     }
-    st.string_[count - 1] = '\0';
-    st.cap = st.size_;
+    st.string_[size_] = '\0';
     return st;
   }
 
@@ -171,11 +187,35 @@ class String {
   }
 
   void shrink_to_fit() {
-    clear();
+    char* st = new char[size_ + 1];
+    memcpy(st, string_, size_ + 1);
+    delete[] string_;
+    string_ = st;
+    cap = size_;
   }
 
-  String& operator+=(char st2);
-  String& operator+=(const String& st1);
+  String& operator+=(char st2) {
+    this -> push_back(st2);
+    return *this;
+  }
+
+  String& operator+=(const String& st1) {
+    char* st = new char[st1.size_ + size_ + 1];
+    strcpy(st, string_);
+    strcat(st, st1.string_);
+    size_ += st1.size_;
+    cap = size_;
+    delete[] string_;
+    string_ = st;
+    return *this;
+  }
+
+  String& operator=(String s){
+    std::swap(size_, s.size_);
+    std::swap(cap, s.cap);
+    std::swap(string_, s.string_);
+    return *this;
+  }
 
  private:
   size_t size_ = 0;
@@ -183,7 +223,7 @@ class String {
   char* string_ = nullptr;
   friend String operator+(const String& st1, const String& st2);
   friend String operator+(char st1, const String& st2);
-  friend String operator+(const String& st1, char st2);
+  friend String operator+(String st1, char st2);
   friend bool operator==(const String& st1, const String& st2);
   friend bool operator>=(const String& st1, const String& st2);
   friend bool operator<=(const String& st1, const String& st2);
@@ -230,44 +270,29 @@ bool operator>(const String& st1, const String& st2) {
   return false;
 }
 
-
-//НЕ О(1)
-String& String::operator+=(const String& st1) {
-  *this = *this + st1;
-  return *this;
-}
-
-String& String::operator+=(char st2) {
-  this -> push_back(st2);
-  return *this;
-}
-
 String operator+(const String& st1, const String& st2) {
-  String st3;
-  st3.size_ = st1.size_ + st2.size_;
-  st3.string_ = new char[st3.size_];
-  st3.cap = st1.cap + st2.cap;
-  strcpy(st3.string_, st1.string_);
-  strcat(st3.string_, st2.string_);
-  return st3;
+  String st(st2.string_);
+  st.size_ = st1.size_ + st2.size_;
+  st.cap = st1.cap + st2.cap;
+  strcpy(st.string_, st1.string_);
+  strcat(st.string_, st2.string_);
+  st.string_[st.size_] = '\0';
+  return st;
+}
+
+String operator+(String st1, char st2) {
+  String st;
+  st.size_ = st1.size_ + 1;
+  st.string_ = new char[st1.size_ + 2];
+  memcpy(st.string_, st1.string_, st1.size_);
+  st.string_[st1.size_] = st2;
+  st.string_[st1.size_ + 1] = '\0';
+  return st;
 }
 
 String operator+(char st1, const String& st2) {
-  String st3;
-  st3.size_ = 1 + st2.size_;
-  st3.string_ = new char[st3.size_ + 1];
-  st3[0] = st1;
-  strcpy(st3.string_, st2.string_);
-  return st3;
-}
-
-String operator+(const String& st1, char st2) {
-  String st3;
-  st3.size_ = 1 + st1.size_;
-  st3.string_ = new char[st3.size_ + 1];
-  st3[0] = st2;
-  strcpy(st3.string_, st1.string_);
-  return st3;
+  String st3(1, st1);
+  return (st3 += st2);
 }
 
 bool operator<=(const String& st1, const String& st2) {
@@ -304,7 +329,7 @@ std::ostream& operator<<(std::ostream& os, const String& st) {
 }
 
 std::istream& operator>>(std::istream& in, String& st) {
-  char array[1000];
+  char array[1000000];
   in >> array;
   st.size_ = strlen(array);
   st.string_ = new char[st.size_ + 1];
